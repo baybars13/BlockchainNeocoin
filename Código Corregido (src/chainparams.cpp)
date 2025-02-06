@@ -1,0 +1,54 @@
+#include "chainparams.h"
+#include "consensus/merkle.h"
+#include "util.h"
+#include "validation.h"
+#include "hash.h"
+#include "lmdb.h"
+#include <iostream>
+
+// 1. Configuración LMDB (corregido)
+MDB_env* neo_env;
+MDB_dbi blocks_dbi;
+
+void InitializeLMDB(const char* path) {
+    if (mdb_env_create(&neo_env) != 0) throw std::runtime_error("LMDB init failed");
+    mdb_env_set_mapsize(neo_env, 104857600); // 100 MB en decimal
+    mdb_env_open(neo_env, path, MDB_NOSUBDIR|MDB_NOMETASYNC, 0664);
+    
+    MDB_txn* txn;
+    mdb_txn_begin(neo_env, nullptr, 0, &txn);
+    mdb_dbi_open(txn, "blocks", MDB_CREATE, &blocks_dbi);
+    mdb_txn_commit(txn);
+}
+
+// 2. Bloque Génesis con Premine (20%)
+CBlock CreateGenesisBlock() {
+    CMutableTransaction txNew;
+    txNew.nVersion = 1;
+    
+    // Input
+    txNew.vin.resize(1);
+    txNew.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) 
+                                      << std::vector<unsigned char>(
+                                          (const unsigned char*)"Neocoin Genesis 2025", 
+                                          (const unsigned char*)"Neocoin Genesis 2025" + 19);
+
+    // Outputs
+    txNew.vout.resize(2);
+    // Wallet Reserva (10%)
+    txNew.vout[0].nValue = 105000 * COIN;
+    txNew.vout[0].scriptPubKey = CScript() << ParseHex("0419fd1Dbe8C61F4Fc69CE6Ce5AB3e3096Fa1A2E3") << OP_CHECKSIG;
+    // Wallet Preventa (10%)
+    txNew.vout[1].nValue = 105000 * COIN;
+    txNew.vout[1].scriptPubKey = CScript() << ParseHex("F3bD9Dbab04f01304153ECB2680d193553Ede296") << OP_CHECKSIG;
+
+    CBlock genesis;
+    genesis.nTime = 1738756800; // 05-Feb-2025 00:00:00 UTC
+    genesis.nBits = 0x1e0ffff0;
+    genesis.nNonce = 0;
+    genesis.nVersion = 1;
+    genesis.vtx.push_back(MakeTransactionRef(std::move(txNew)));
+    genesis.hashPrevBlock.SetNull();
+    genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
+    return genesis;
+}
