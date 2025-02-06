@@ -1,0 +1,8 @@
+neocoin/
+├── src/
+│   ├── chainparams.cpp      # Parámetros de red
+│   ├── validation.cpp       # Lógica de consenso
+│   ├── lmdb/                # Integración LMDB
+│   └── Makefile.am          # Configuración de compilación
+├── configure.ac             # Configuración del proyecto
+└── README.md                # Documentación
